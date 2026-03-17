@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>IoT Power Monitoring</title>
+    <meta http-equiv="refresh" content="5" />
+
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* Giữ nguyên toàn bộ style cũ của bạn */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .title {
+            font-size: clamp(1.8rem, 6vw, 2.8rem);
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            color: #38bdf8;
+            text-shadow: 0 4px 20px rgba(56, 189, 248, 0.45);
+            margin: 2.2rem 1rem 1.8rem;
+            text-align: center;
+        }
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            width: 90%;
+            max-width: 1200px;
+            padding: 0 1rem;
+            margin-bottom: 2.5rem;
+        }
+        .card {
+            background: rgba(30, 41, 59, 0.92);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(51, 65, 85, 0.7);
+            border-radius: 16px;
+            padding: 1.6rem 1.4rem;
+            transition: all 0.25s ease;
+            box-shadow: 0 6px 22px rgba(0,0,0,0.35);
+        }
+        .card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 14px 36px rgba(56, 189, 248, 0.22);
+            border-color: #38bdf8;
+        }
+        .card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 0.6rem;
+        }
+        .value {
+            font-size: clamp(2rem, 5.5vw, 2.5rem);
+            font-weight: 800;
+            color: #67e8f9;
+        }
+        .unit {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            margin-left: 0.4rem;
+            font-weight: 500;
+        }
+        .chart-container {
+            width: 92%;
+            max-width: 1100px;
+            height: 420px;
+            background: rgba(30, 41, 59, 0.9);
+            border-radius: 16px;
+            padding: 1.8rem 1.5rem 1.2rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            border: 1px solid rgba(51,65,85,0.6);
+            margin-bottom: 3rem;
+        }
+        .ct-chart { height: 100% !important; }
+
+        /* Style cho biểu đồ Voltage */
+        #voltageChart .ct-line {
+            stroke: #c084fc !important;
+            stroke-width: 3px !important;
+        }
+        #voltageChart .ct-point {
+            stroke: #c084fc;
+            stroke-width: 8px;
+            transition: all 0.3s;
+        }
+        #voltageChart .ct-point:hover {
+            stroke-width: 12px !important;
+        }
+        #voltageChart .ct-area {
+            fill: url(#gradient-voltage) !important;
+            opacity: 0.35;
+        }
+        #voltageChart .ct-label {
+            color: #94a3b8 !important;
+            font-size: 12px !important;
+        }
+        #voltageChart .ct-grid {
+            stroke: rgba(51,65,85,0.4) !important;
+        }
+
+        @media (max-width: 640px) {
+            .stats-container { grid-template-columns: 1fr; }
+            .chart-container { height: 360px; padding: 1.2rem 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="title">⚡ Energy Monitoring System</div>
+
+    <div class="stats-container">
+        <div class="card">
+            <h3>Voltage</h3>
+            <div><span class="value">{{voltage}}</span><span class="unit">V</span></div>
+        </div>
+        <div class="card">
+            <h3>Current</h3>
+            <div><span class="value">{{current}}</span><span class="unit">A</span></div>
+        </div>
+        <div class="card">
+            <h3>Power</h3>
+            <div><span class="value">{{power}}</span><span class="unit">W</span></div>
+        </div>
+        <div class="card">
+            <h3>Energy</h3>
+            <div><span class="value">{{energy}}</span><span class="unit">kWh</span></div>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <div style="text-align:center; margin-bottom:1rem; color:#38bdf8; font-weight:600;">
+            Power theo thời gian (W)
+        </div>
+        <canvas id="powerChart" style="width:100%;height:100%;"></canvas>
+    </div>
+
+    <script>
+        const powerData = {{ power_list | tojson | safe }};
+        const timeLabels = {{ time_list | tojson | safe }};
+        const ctx = document.getElementById('powerChart').getContext('2d');
+
+        // Gradient line
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, '#38bdf8');
+        gradient.addColorStop(1, '#0ea5e9');
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'Power (W)',
+                    data: powerData,
+                    borderColor: gradient,
+                    backgroundColor: 'rgba(56,189,248,0.15)',
+                    pointBackgroundColor: '#fbbf24',
+                    pointBorderColor: '#fbbf24',
+                    pointRadius: 5,
+                    pointHoverRadius: 8,
+                    tension: 0.45,
+                    borderWidth: 4,
+                    fill: true,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: {
+                            color: '#38bdf8',
+                            font: { size: 18, weight: 'bold' }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleColor: '#38bdf8',
+                        bodyColor: '#f1f5f9',
+                        borderColor: '#38bdf8',
+                        borderWidth: 1.5,
+                        padding: 12,
+                        caretSize: 8,
+                        displayColors: false,
+                        callbacks: {
+                            label: function(context) {
+                                return `  ${context.parsed.y} W`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#f1f5f9', font: { size: 14 } },
+                        grid: { color: '#334155' }
+                    },
+                    y: {
+                        ticks: { color: '#f1f5f9', font: { size: 14 } },
+                        grid: { color: '#334155' }
+                    }
+                },
+                elements: {
+                    line: {
+                        borderJoinStyle: 'round',
+                    }
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>
