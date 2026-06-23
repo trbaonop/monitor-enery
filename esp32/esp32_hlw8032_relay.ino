@@ -2,7 +2,7 @@
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <WebServer.h>
-#include <HLW8032.h>
+#include <Hlw8032.h>
 
 /* ================= WIFI ================= */
 const char* ssid = "VJU Office";
@@ -10,7 +10,7 @@ const char* password = "VJuOffice@2023";
 
 /* ================= GOOGLE SCRIPT ================= */
 String google_url =
-"https://script.google.com/macros/s/AKfycbwkmgvFBo__LTcMGpYcvYlYQdKMeFotokXGD9-RnOkYZPWrsGtZo6lMu_vowQrOLZRR/exec";
+"c";
 
 /* ================= HLW8032 (ESP32-C3) =================
    HLW8032 TX  -> qua opto -> ESP32-C3 IO4  (data vào, RX của UART1)
@@ -25,7 +25,7 @@ String google_url =
 #define HLW_SEL_PIN 6   // IO6
 
 HardwareSerial HLWSerial(1);   // dùng UART1 của ESP32 (chỉ cần chân RX)
-HLW8032 HLW;
+Hlw8032 HLW;
 
 /* ================= RELAY (ESP32-C3) =================
    Relay nối qua opto tới IO0.
